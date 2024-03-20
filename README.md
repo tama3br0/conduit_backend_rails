@@ -209,3 +209,25 @@ class Article < ApplicationRecord
     end
 end
 ```
+
+### 11. ページネーションの実装
+
+-   Gemfile に追加
+
+```Gemfile
+gem 'kaminari'
+```
+
+```bash
+bundle install
+```
+
+-   articles_controller.rb の index アクションを書き換える
+
+```rb
+# GET /api/articles
+def index
+    @articles = Article.all.order(created_at: :desc).page(params[:page]).per(10)
+    render json: @articles
+end
+```
