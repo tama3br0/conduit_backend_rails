@@ -3,6 +3,7 @@ Rails.application.routes.draw do
         resources :articles, except: [:new, :edit]
 
         post '/upload_image', to: 'article_images#upload_image' # コントローラーとアクションの指定を追記
+        get '/tags/popular', to: 'tags#popular' # 頻出tagを取得するためのAPI
 
     end
 end

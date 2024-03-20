@@ -163,3 +163,49 @@ Rails.application.routes.draw do
     end
 end
 ```
+
+### 8. 頻度の高い Tags を表示するためのコントローラを生成
+
+```bash
+rails g controller Api::Tags
+```
+
+```rb:tags_controller.rb
+class Api::TagsController < ApplicationController
+    def popular
+      # MySQLのJSON_EXTRACT関数を使用して、tag_listからタグを取得する
+        popular_tags = Article.pluck(Arel.sql("JSON_UNQUOTE(JSON_EXTRACT(tag_list, '$[*]'))")).flatten.group_by(&:itself).transform_values(&:count).sort_by { |_, v| -v }.to_h.keys
+        render json: { popular_tags: popular_tags }
+    end
+end
+
+```
+
+### 9. ルーターの設定
+
+```rb
+Rails.application.routes.draw do
+    namespace :api do
+        resources :articles, except: [:new, :edit]
+
+        post '/upload_image', to: 'article_images#upload_image' # コントローラーとアクションの指定を追記
+        get '/tags/popular', to: 'tags#popular' # 頻出tagを取得するためのAPI
+
+    end
+end
+```
+
+### 10. モデルに追記
+
+MySQL が jsonb_array_elements_text 関数を認識できないため、Rails のコードで使われている jsonb_array_elements_text 関数を MySQL に対応する形で書き換える必要が生じた
+
+```rb:article.rb
+class Article < ApplicationRecord
+    has_one_attached :image
+
+    def self.popular_tags
+        # MySQLの機能を使ったPopular Tagsのクエリを実行する
+        popular_tags = select('JSON_EXTRACT(tag_list, "$[*]") AS tag').pluck(:tag).flatten.group_by(&:itself).transform_values(&:count).sort_by { |_, v| -v }.to_h.keys
+    end
+end
+```
