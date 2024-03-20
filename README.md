@@ -131,3 +131,35 @@ end
 ```
 
 -   同様にして、PATCH や DELETE も確かめることができる
+
+### 7. 画像をアップロードするための準備を進める
+
+-   コントローラを追加する
+
+```bash
+rails g controllers Api::ArticleImages
+```
+
+```rb:article_images_controller.rb
+class Api::ArticleImagesController < ApplicationController
+    def upload_image
+      image = params[:image]
+      article = Article.create(image: image) # Active Storageを使用して画像を保存し、Articleを作成
+
+      render json: { image_url: url_for(article.image) } # 作成したArticleの画像のURLを返す
+    end
+end
+```
+
+-   ルーターを設定する
+
+```rb:router.rb
+Rails.application.routes.draw do
+    namespace :api do
+        resources :articles, except: [:new, :edit]
+
+        post '/upload_image', to: 'article_images#upload_image' # コントローラーとアクションの指定を追記
+
+    end
+end
+```
