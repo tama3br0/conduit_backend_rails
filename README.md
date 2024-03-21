@@ -231,3 +231,20 @@ def index
     render json: @articles
 end
 ```
+
+### 12. created_at の表示形式を変更
+
+詳細ページに表示する created_at の表示形式を変更したかったので、show アクションを以下のように変更
+
+```rb:articles_controller.rb
+
+def index
+    @articles = Article.all.order(created_at: :desc).page(params[:page]).per(10)
+    render json: @articles.map { |article| article.as_json.merge(created_at: article.created_at.strftime('%B %d, %Y')) }
+end
+
+def show
+    @article = Article.find(params[:id])
+    render json: @article.as_json.merge(created_at: @article.created_at.strftime('%B %d, %Y'))
+end
+```

@@ -3,13 +3,13 @@ class Api::ArticlesController < ApplicationController
     # GET /api/articles
     def index
         @articles = Article.all.order(created_at: :desc).page(params[:page]).per(10)
-        render json: @articles
+        render json: @articles.map { |article| article.as_json.merge(created_at: article.created_at.strftime('%B %d, %Y')) }
     end
 
     # GET /api/articles/:id
     def show
         @article = Article.find(params[:id])
-        render json: @article
+        render json: @article.as_json.merge(created_at: @article.created_at.strftime('%B %d, %Y'))
     end
 
     # POST /api/articles
