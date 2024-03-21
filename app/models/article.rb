@@ -1,5 +1,7 @@
 class Article < ApplicationRecord
     has_one_attached :image
+    has_many :comments # 追記
+
 
     def self.popular_tags
         # MySQLの機能を使ったPopular Tagsのクエリを実行する

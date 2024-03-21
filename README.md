@@ -248,3 +248,166 @@ def show
     render json: @article.as_json.merge(created_at: @article.created_at.strftime('%B %d, %Y'))
 end
 ```
+
+### 13. コメントモデルの生成
+
+詳細ページから、記事にコメントを投稿できるようにしていく
+
+```bash
+rails g model Comment content:text author_name:string article:references
+```
+
+```rb:マイグレーションファイル
+class CreateComments < ActiveRecord::Migration[7.1]
+  def change
+    create_table :comments do |t|
+      t.text :content
+      t.string :author_name
+      t.references :article, null: false, foreign_key: true
+
+      t.timestamps
+    end
+  end
+end
+```
+
+```bash
+rails db:migrate
+```
+
+各モデルに追記
+
+```rb:article.rb
+class Article < ApplicationRecord
+    has_one_attached :image
+    has_many :comments # 追記
+
+
+    def self.popular_tags
+        # MySQLの機能を使ったPopular Tagsのクエリを実行する
+        popular_tags = select('JSON_EXTRACT(tag_list, "$[*]") AS tag').pluck(:tag).flatten.group_by(&:itself).transform_values(&:count).sort_by { |_, v| -v }.to_h.keys
+    end
+end
+```
+
+```rb:comment.rb
+class Comment < ApplicationRecord
+  belongs_to :article
+  validates :content, presence: true # 空のコメントは投稿できないようにするバリデーション
+
+end
+```
+
+### 14. コメントコントローラの生成
+
+```bash
+rails g controller Api::Comments
+```
+
+```rb:comments_controller.rb
+class Api::CommentsController < ApplicationController
+    before_action :set_article
+    before_action :set_comment, only: [:show, :update, :destroy]
+
+    # GET /api/articles/:article_id/comments
+    def index
+        @comments = @article.comments
+        render json: @comments
+    end
+
+    # GET /api/articles/:article_id/comments/:id
+    def show
+        render json: @comment
+    end
+
+    # POST /api/articles/:article_id/comments
+    def create
+        @comment = @article.comments.new(comment_params)
+
+        if @comment.save
+            render json: @comment, status: :created
+        else
+            render json: @comment.errors, status: :unprocessable_entity
+        end
+    end
+
+    # PUT /api/articles/:article_id/comments/:id
+    def update
+        if @comment.update(comment_params)
+            render json: @comment
+        else
+            render json: @comment.errors, status: :unprocessable_entity
+        end
+    end
+
+    # DELETE /api/articles/:article_id/comments/:id
+    def destroy
+        @comment.destroy
+        head :no_content
+    end
+
+    private
+
+    def set_article
+        @article = Article.find(params[:article_id])
+    end
+
+    def set_comment
+        @comment = @article.comments.find(params[:id])
+    end
+
+    def comment_params
+        params.require(:comment).permit(:content, :author_name)
+    end
+end
+```
+
+### 15. ルーティングの設定
+
+```rb
+Rails.application.routes.draw do
+    namespace :api do
+        resources :articles, except: [:new, :edit] do
+            resources :comments, only: [:index, :create, :show, :update, :destroy]
+            # GET /api/articles/:article_id/comments(.:format)   comments#index
+            # POST /api/articles/:article_id/comments(.:format)  comments#create
+            # GET /api/articles/:article_id/comments/:id(.:format) comments#show
+            # PUT /api/articles/:article_id/comments/:id(.:format) comments#update
+            # DELETE /api/articles/:article_id/comments/:id(.:format) comments#destroy
+        end
+
+        post '/upload_image', to: 'article_images#upload_image' # コントローラーとアクションの指定を追記
+        get '/tags/popular', to: 'tags#popular' # 頻出tagを取得するためのAPI
+    end
+end
+```
+
+### 15. Postman を使ってテスト
+
+特定の記事に対してコメントが投稿できるかを確かめる
+
+POST localhost:3000/api/articles/6/comments
+
+```json
+{
+    "comment": {
+        "content": "このDIOが、コメントのテストをしてやるッ！",
+        "author_name": "DIO"
+    }
+}
+```
+
+次のように返ってくれば成功
+
+```json
+{
+    "id": 1,
+    "content": "このDIOが、コメントのテストをしてやるッ！",
+    "author_name": "DIO",
+    "article_id": 6,
+    "created_at": "2024-03-21T11:09:41.422Z",
+    "updated_at": "2024-03-21T11:09:41.422Z"
+}
+```
+
+また、　 GET localhost:3000/api/articles/6/comments で、その記事に対するコメントを取得することができる
