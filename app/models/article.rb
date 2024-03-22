@@ -1,6 +1,6 @@
 class Article < ApplicationRecord
     has_one_attached :image
-    has_many :comments # 追記
+    has_many :comments, dependent: :destroy # 関連するコメントも削除する設定を追加
 
 
     def self.popular_tags
